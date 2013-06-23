@@ -1,4 +1,4 @@
-$(function() {
+document.addEventListener('DOMContentLoaded', function() {
 	var Cocktail = Backbone.Model.extend();
 
 	var SearchResults = Backbone.Collection.extend({
@@ -31,28 +31,28 @@ $(function() {
 			'click .sources a[href]': 'onSwitchRecipe'
 		},
 
-		template: _.template($('#cocktail-template').html()),
+		template: _.template(document.getElementById('cocktail-template').innerHTML),
 
 		adjustSourcesWidth: function() {
-			$('.sources li', this.$el).each(function(idx, source) {
-				var label = $(':first-child', source);
-				var text = label.attr('data-source');
+			_.each(this.el.querySelectorAll('.sources li'), function(source) {
+				var label = source.children[0];
+				var text = label.getAttribute('data-source');
 
-				label.text(text.substr(0, 1) + '...');
+				label.textContent = text.substr(0, 1) + '...';
 				var maxWidth = source.scrollWidth;
 
-				label.text(text);
+				label.textContent = text;
 				while (source.scrollWidth > maxWidth)
-					label.text((text = text.slice(0, -1)) + '...');
+					label.textContent = (text = text.slice(0, -1)) + '...';
 			});
 		},
 
 		backupScrollPosition: function() {
-			return viewport.scrollTop() - $('.sources', this.$el)[0].offsetTop;
+			return window.pageYOffset - this.el.getElementsByClassName('sources')[0].offsetTop;
 		},
 
 		restoreScrollPosition: function(pos) {
-			viewport.scrollTop(pos + $('.sources', this.$el)[0].offsetTop);
+			window.scrollTo(window.pageXOffset, pos + this.el.getElementsByClassName('sources')[0].offsetTop);
 		},
 
 		render: function() {
@@ -62,21 +62,20 @@ $(function() {
 			);
 
 			var recipe = sources[
-				this.currentSource || _.keys(sources)[0]
+				this.currentSource || Object.keys(sources)[0]
 			][
 				this.currentRecipe || 0
 			];
 
-			this.$el.html(this.template({recipe: recipe, sources: sources}));
+			this.el.innerHTML = this.template({recipe: recipe, sources: sources});
 			return this;
 		},
 
 		onSwitchRecipe: function(event) {
-			var link = $(event.currentTarget);
 			var scrollPos = this.backupScrollPosition();
 
-			this.currentSource = link.attr('data-source');
-			this.currentRecipe = link.attr('data-recipe');
+			this.currentSource = event.currentTarget.getAttribute('data-source');
+			this.currentRecipe = event.currentTarget.getAttribute('data-recipe');
 
 			this.setElement(this.render().$el);
 			this.adjustSourcesWidth();
@@ -85,7 +84,11 @@ $(function() {
 	});
 
 	var SearchResultsView = Backbone.View.extend({
-		el: $('#search-results'),
+		el: document.getElementById('search-results'),
+
+		events: {
+			'mousedown': 'onMouseDown'
+		},
 
 		initialize : function(options) {
 			_.bindAll(this, 'add', 'remove', 'adjustSourcesWidth');
@@ -100,27 +103,51 @@ $(function() {
 
 		add: function(cocktail) {
 			var view = new CocktailView({model: cocktail});
-			view.setElement(view.render().$el.appendTo(this.$el));
-			view.adjustSourcesWidth();
+
+			this.el.appendChild(view.el);
 			this.cocktailViews.push(view);
+
+			view.render();
+			view.setElement(view.$el);
+			view.adjustSourcesWidth();
 		},
 
 		remove: function(cocktail) {
-			_.each(this.cocktailViews, function(view) {
+			for (var i = 0; i < this.cocktailViews.length; i++) {
+				var view = this.cocktailViews[i];
+
 				if (view.model == cocktail) {
-					view.$el.remove();
+					this.el.removeChild(view.el);
 					this.cocktailViews = _.without(this.cocktailViews, view);
 				}
-			});
+			}
 		},
 
 		adjustSourcesWidth: function() {
 			_.invoke(this.cocktailViews, 'adjustSourcesWidth');
+		},
+
+		loadMoreIfPossible: function() {
+			var view;
+
+			if (!this.collection.canLoadMore)
+				return;
+
+			if (view = this.cocktailViews[this.cocktailViews.length - 5])
+			if (view.el.offsetTop > window.pageYOffset + document.documentElement.clientHeight)
+				return;
+
+			this.collection.canLoadMore = false;
+			this.collection.fetch({remove:false, data: {offset: this.collection.length}});
+		},
+
+		onMouseDown: function() {
+			state_is_volatile = false;
 		}
 	});
 
 	var FirefoxWarningView = Backbone.View.extend({
-		el: $('#firefox-warning'),
+		el: document.getElementById('firefox-warning'),
 
 		render: function() {
 			var firefoxVersion = navigator.userAgent.match(/ Firefox\/([\d.]+)/);
@@ -128,11 +155,13 @@ $(function() {
 			if (firefoxVersion)
 			if (!('flex'    in document.body.style))
 			if (!('MozFlex' in document.body.style))
-				this.$el.html(_.template($('#firefox-warning-template').html(), {
-					version: firefoxVersion[1],
-					android: navigator.userAgent.indexOf('Android;')    != -1,
-					debian:  navigator.userAgent.indexOf(' Iceweasel/') != -1
-				}));
+				this.$el.html(_.template(
+					document.getElementById('firefox-warning-template').innerHTML, {
+						version: firefoxVersion[1],
+						android: navigator.userAgent.indexOf('Android;')    != -1,
+						debian:  navigator.userAgent.indexOf(' Iceweasel/') != -1
+					}
+				));
 
 			return this;
 		}
@@ -144,16 +173,13 @@ $(function() {
 	var firefoxWarningView = new FirefoxWarningView();
 	firefoxWarningView.setElement(firefoxWarningView.render());
 
-	var results = $('#search-results');
-	var form = $('form');
-	var viewport = $(window);
-
-	var initial_field = $('input', form).val('');;
-	var empty_field = initial_field.clone();
+	var form = document.getElementsByTagName('form')[0];
+	var initial_field = form.children[0];
+	initial_field.value = '';
+	var empty_field = initial_field.cloneNode();
 	var original_title = document.title;
 
 	var offset = 0;
-	var can_load_more = false;
 	var ingredients;
 
 	var state;
@@ -168,13 +194,13 @@ $(function() {
 	};
 
 	var prepareField = function(field) {
-		field.on('input', function() {
+		field.addEventListener('input', function() {
 			var has_empty = false;
 			var new_state;
 
 			ingredients = [];
 
-			$('input', form).each(function(idx, field) {
+			_.each(form.children, function(field, idx) {
 				if (field.value != '')
 					ingredients.push(field.value);
 				else
@@ -203,19 +229,27 @@ $(function() {
 
 			collection.ingredients = ingredients;
 			collection.fetch();
-		});
+		}, false);
 
-		field.blur(function() {
-			$('input', form).filter(function() {
-				return this.value == '';
-			}).slice(0, -1).remove();
-		});
+		field.addEventListener('blur', function() {
+			_.each(
+				_.filter(
+					form.children,
+					function(field) {
+						return field.value == '';
+					}
+				).slice(0, -1),
+				function(field) {
+					form.removeChild(field);
+				}
+			);
+		}, false);
 	};
 
 	var addField = function () {
-		var field = empty_field.clone();
+		var field = empty_field.cloneNode();
 
-		form.append(field);
+		form.appendChild(field);
 		prepareField(field);
 
 		return field;
@@ -224,28 +258,23 @@ $(function() {
 	var populateForm = function() {
 		state = document.location.hash;
 		state_is_volatile = false;
-		ingredients = [];
+		ingredients = collection.ingredients = [];
+		form.innerHTML = '';
 
-		var bits = state.substring(1).split(';');
-
-		$('input', form).remove();
-
-		for (var i = 0; i < bits.length; i++) {
-			var ingredient = decodeURIComponent(bits[i]);
+		_.each(state.substring(1).split(';'), function(ingredient) {
+			ingredient = decodeURIComponent(ingredient);
 
 			if (ingredient == '')
-				continue;
+				return;
 
 			var field = addField();
-			field.val(ingredient);
+			field.value = ingredient;
 
 			ingredients.push(ingredient);
-		}
+		});
 
 		addField().focus();
 		updateTitle();
-
-		collection.ingredients = ingredients;
 		collection.fetch();
 	};
 
@@ -268,25 +297,14 @@ $(function() {
 		mediaQueryList.addListener(listener);
 	};
 
-	results.mousedown(function() {
+	window.addEventListener('scroll', function() {
 		state_is_volatile = false;
-	});
+		searchResultsView.loadMoreIfPossible();
+	}, false);
 
-	viewport.scroll(function() {
-		state_is_volatile = false;
-
-		if (!collection.canLoadMore)
-			return;
-		if (viewport.scrollTop() + viewport.height() < $('.cocktail').slice(-5)[0].offsetTop)
-			return;
-
-		collection.canLoadMore = false;
-		collection.fetch({remove:false, data:{offset:collection.length}});
-	});
-
-	viewport.on('popstate', populateForm);
+	window.addEventListener('popstate', populateForm);
 
 	prepareField(initial_field);
 	populateForm();
 	adjustSourcesWidthOnResize();
-});
+}, false);
