@@ -3,12 +3,12 @@ from urlparse import urljoin
 from scrapy.contrib.spiders import SitemapSpider
 from scrapy.selector import HtmlXPathSelector
 
-from lxml.cssselect import css_to_xpath
+from cssselect import GenericTranslator
 
 from cocktails.items import CocktailItem
 from cocktails.utils import html_to_text, unescape
 
-xp_ingredient = css_to_xpath('.ingredient')
+xp_ingredient = GenericTranslator().css_to_xpath('.ingredient')
 
 class EsquireSpider(SitemapSpider):
 	name = 'esquire'

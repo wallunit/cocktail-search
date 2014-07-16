@@ -4,13 +4,13 @@ from scrapy.contrib.spiders import CrawlSpider, Rule
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import HtmlXPathSelector
 
-from lxml.cssselect import css_to_xpath
+from cssselect import GenericTranslator
 
 from cocktails.items import CocktailItem
 from cocktails.utils import html_to_text
 
-xp_header = css_to_xpath('.header') + '/text()'
-xp_ingredients = css_to_xpath('.story') + ("[1]//text()["
+xp_header = GenericTranslator().css_to_xpath('.header') + '/text()'
+xp_ingredients = GenericTranslator().css_to_xpath('.story') + ("[1]//text()["
 	"preceding::text()["
 		"normalize-space(self::text()) = 'Ingredients:'"
 	"]"

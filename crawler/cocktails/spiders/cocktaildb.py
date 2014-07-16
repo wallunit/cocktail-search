@@ -2,12 +2,13 @@ from scrapy.contrib.spiders import CrawlSpider, Rule
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import HtmlXPathSelector
 
-from lxml.cssselect import css_to_xpath
+from cssselect import GenericTranslator
+from lxml.etree import XPath
 
 from cocktails.items import CocktailItem
 from cocktails.utils import html_to_text
 
-xp_ingredients = css_to_xpath('.recipeMeasure')
+xp_ingredients = GenericTranslator().css_to_xpath('.recipeMeasure')
 
 class CocktailDbSpider(CrawlSpider):
 	name = 'cocktaildb'
