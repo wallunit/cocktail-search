@@ -5,13 +5,13 @@ from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.http import Request
 from scrapy.selector import HtmlXPathSelector
 
-from lxml.cssselect import css_to_xpath
+from cssselect import GenericTranslator
 
 from cocktails.items import CocktailItem
 from cocktails.utils import html_to_text
 
-xp_recipes = css_to_xpath('.hrecipe')
-xp_ingredients = css_to_xpath('.ingredient li')
+xp_recipes = GenericTranslator().css_to_xpath('.hrecipe')
+xp_ingredients = GenericTranslator().css_to_xpath('.ingredient li')
 
 class WikipediaSpider(CrawlSpider):
 	name = 'wikipedia'
